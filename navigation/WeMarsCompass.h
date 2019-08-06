@@ -8,41 +8,46 @@
 #define wemarscompass
 
 #include "Arduino.h"
+#include "VectorMath.h"
 #include <Adafruit_LSM303.h>
 
-int a_data[] = {0,0,0}; //accelerometer vector
-int m_data[] = {0,0,0}; //magnetometer vector
+float a_data[] = {0,0,0}; //accelerometer vector
+float m_data[] = {0,0,0}; //magnetometer vector
 
-int x_unit = {1,0,0}; //i vector
-int y_unit = {0,1,0}; //j vector
+float x_unit[] = {1,0,0}; //i vector
+float y_unit[] = {0,1,0}; //j vector
+
+
+float m_proj[3]; //magnetometer vector projected onto gravity plane
 
 float compres = 22.5; //resolution of compass directions
 
-
-//updates vectors from board data
-void updateData(lsm303AccelData accelerometer,lsm303MagData magnetometer){
-    //populate data
-    a_data[0] = (int)accelerometer.x;
-    a_data[1] = (int)accelerometer.y;
-    a_data[2] = (int)accelerometer.z;
-    m_data[0] = (int)magnetometer.x;
-    m_data[1] = (int)magnetometer.y;
-    m_data[2] = (int)magnetometer.z; 
-}
-
 //returns angle of X axis to ground
 float getAngleX(){
-  return angleVector(x_unit,a_data);
+  return angleVector(x_unit,a_data) - 90;
 }
 
 float getAngleY(){
-  return angleVector(y_unit,a_data);
+  return angleVector(y_unit,a_data) - 90;
 }
+
+//TODO: try using adafruit solution
 
 //get compass bearing
 float getBearing(){
+
+  // Calculate the angle of the vector y,x
+  float heading = (atan2(m_data[1],m_data[0]) * 180) / PI;
+  
+  // Normalize to 0-360
+  if (heading < 0)
+  {
+    heading = 360 + heading;
+  }
+  return heading;
+  
+  /*
   float x_proj[3]; //i projected onto gravity plane
-  float m_proj[3]; //magnetometer vectore projected onto gravity plane
   
   //project vectors
   for(int c = 0; c < 2; c++){
@@ -50,58 +55,9 @@ float getBearing(){
     m_proj[c] = projectVector(m_data,a_data,c);
   }
 
-  return angleVector(x_proj,y_proj);//return compass bearing in degrees 
-}
+  return angleVector(x_proj,m_proj);//return compass bearing in degrees 
+  */
 
-String bearingToDirection(float b){
-  String compass;
-
-  //compass labels
-  const String comp1[] = {"E","NEE","NE","NEE","N","NNE","NW","NWW","W"};
-  const String comp2[] = {"E","SEE","SE","SSE","S","SWW","SW","SWW","W"};
-  
-  //upper quadrants
-  if (magVect[1] > 0){
-    //loop through options
-    for (int c = 0; c < 9; c++){
-      //if angle is within the range
-      if (b > (compres*c - compres/2) && b < (compres*(c+1) - compres/2)){
-        compass = comp1[c]; //set compass bearing
-        break; //end loop
-      }
-    }
-  }
-  //lower quadrants
-  else if (magVect[1] < 0){
-    //loop through options
-    for (int c = 0; c < 9; c++){
-      //if angle is within the range
-      if (ang > (compres*c - compres/2) && ang < (compres*(c+1) - compres/2)){
-        compass = comp2[c]; //set compass bearing
-        break; //end loop
-      }
-    }
-  }
-  //on y axis
-  else if (magVect[0] == 0){
-    if (magVect[1] > 0){
-      compass = "N";
-    }
-    else{
-      compass = "S";
-    }
-  }
-  //on x axis
-  else{
-    if (magVect[0] > 0){
-      compass = "E";
-    }
-    else{
-      compass = "W";
-    }
-  }
-
-  return compass;
 }
 
 
