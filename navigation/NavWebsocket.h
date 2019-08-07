@@ -10,7 +10,7 @@
 const char* ssid = "WE MARS Rover";
 const char* password = "westill1";
 
-int cameraAngle[] = {0,0}
+int cameraAngle[] = {0,0};
 
 
 // COMMUNICATION CONSTANTS

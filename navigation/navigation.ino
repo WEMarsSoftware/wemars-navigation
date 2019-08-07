@@ -8,6 +8,7 @@
 #include <Wire.h>
 #include <Adafruit_LSM303.h>
 #include "WeMarsCompass.h"
+#include "NavWebsocket.h";
 #include <TinyGPS++.h>
 
 //serial pins
@@ -24,6 +25,9 @@ void setup() {
   //begin serials
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2); //gps recommended baud rate 9600
+
+  startWiFi();
+  startServer();
 
   
   if (!lsm.begin())
@@ -51,13 +55,23 @@ void loop() {
 
     lsm.read();
     updateData();
-    Serial.println(getBearing());
+    writeServer(generateSentence(getAngleX(),getAngleY(),getBearing(),gps.location.lat(),gps.location.lng()));
   }
 }
 
 //generates string to send data over websocket
 String generateSentence(float angleX, float angleY, float bearing, float latitude, float longitude){
-  
+  String temp = "";
+  temp += angleX;
+  temp += ",";
+  temp += angleY;
+  temp += ",";
+  temp += bearing;
+  temp += ",";
+  temp += latitude;
+  temp += ",";
+  temp += longitude;
+  return temp; 
 }
 
 //updates vectors from board data
