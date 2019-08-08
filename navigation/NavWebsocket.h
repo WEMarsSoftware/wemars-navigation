@@ -10,6 +10,10 @@
 const char* ssid = "WE MARS Rover";
 const char* password = "westill1";
 
+bool servoRight = false; //if 360 servo should be moving right
+bool servoLeft = false; //if 360 servo should be moving left
+int servoUpdateTimer; //amount of time since 360 servo data recieved
+
 int cameraAngle[] = {0,0};
 
 
@@ -33,7 +37,18 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
   }
   //if websocket has recieved data
   else if(type == WS_EVT_DATA){
-    String tempData = "";
+    if((char)data[0] == 'l'){
+      servoUpdateTimer = millis();
+      servoRight = false;
+      servoLeft = true;
+    }
+    else if((char)data[0] == 'r'){
+      servoUpdateTimer = millis();
+      servoLeft = false;
+      servoRight = true;
+    }
+    else{
+      String tempData = "";
     int cameraCounter = 0;
     int counter = 0; //how many values have been read
     //loop through sentence 
@@ -56,6 +71,9 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
         tempData = "";
       }
     }
+    }
+    
+    
     
     
   }

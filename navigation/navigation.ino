@@ -10,6 +10,7 @@
 #include "WeMarsCompass.h"
 #include "NavWebsocket.h";
 #include <TinyGPS++.h>
+#include <Servo.h>
 
 //serial pins
 #define RXD2 16 //TX2
@@ -17,8 +18,10 @@
 
 Adafruit_LSM303 lsm;
 TinyGPSPlus gps;
+Servo servo0, servo1, servo2;
 
 int timer;
+int servoTimer; 
 
 void setup() {
 
@@ -29,6 +32,11 @@ void setup() {
   startWiFi();
   startServer();
 
+  //TODO: attach pins
+  servo0.attach();
+  servo1.attach();
+  servo2.attach();
+
   
   if (!lsm.begin())
   {
@@ -38,6 +46,8 @@ void setup() {
 
 
   timer = millis(); //start timer
+  servoTimer = millis();
+  servoUpdateTimer = millis();
 
 }
 
@@ -48,6 +58,27 @@ void loop() {
       //read and encode data from serial  
       byte gpsData = Serial2.read();
       gps.encode(gpsData);
+  }
+
+  //update every 50ms
+  if(millis() - servoTimer > 50){
+    
+    servo0.write(cameraAngle[0]);
+    servo1.write(cameraAngle[1]);
+    
+    //if data has not been recieved
+    if (millis() - servoUpdateTimer > 50){
+      servoLeft = false;
+      servoRight = false;
+      servo2.write(90); //turn off servo
+    }
+    else if(servoLeft){
+      servo2.write(0); //fullspeed left
+    }
+    else if(servoRight){
+      servo2.write(180); //fullspeed right
+    }
+    servoTimer = millis(); //reset timer
   }
 
   if(millis() - timer > 1000){
