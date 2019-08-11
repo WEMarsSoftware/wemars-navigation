@@ -1,20 +1,26 @@
-#ifndef navwebsocket.h
-#define navwebsocket.h
-
+#ifndef navwebsocket_h
+#define navwebsocket_h
+ 
 #include "Arduino.h"
 #include <WiFi.h>
 #include "ESPAsyncWebServer.h"
 #include "SPIFFS.h"
 
 // INFO FOR LOCAL ROUTER
-const char* ssid = "WE MARS Rover";
-const char* password = "westill1";
+//const char* ssid = "WE MARS Rover";
+//const char* password = "westill1";
+const char* ssid = "partybus";
+const char* password = "allaboard";
 
 bool servoRight = false; //if 360 servo should be moving right
 bool servoLeft = false; //if 360 servo should be moving left
 int servoUpdateTimer; //amount of time since 360 servo data recieved
 
-int cameraAngle[] = {0,0};
+IPAddress staticIP(192, 168, 1, 101);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+
+int cameraAngle[] = {0, 0};
 
 
 // COMMUNICATION CONSTANTS
@@ -23,102 +29,81 @@ AsyncWebSocket ws("/ws");
 AsyncWebSocketClient * globalClient = NULL; //client for server
 
 //if there is a websocket event
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
+void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len) {
 
   //if the websocket has connected
-  if(type == WS_EVT_CONNECT){
+  if (type == WS_EVT_CONNECT) {
     Serial.println("Websocket client connection received");
     globalClient = client; //declare client
   }
   //if the websocket has disconnected
-  else if(type == WS_EVT_DISCONNECT){
+  else if (type == WS_EVT_DISCONNECT) {
     Serial.println("Client disconnected");
     globalClient = NULL; //to avoid errors
   }
   //if websocket has recieved data
-  else if(type == WS_EVT_DATA){
-    if((char)data[0] == 'l'){
-      servoUpdateTimer = millis();
-      servoRight = false;
-      servoLeft = true;
-    }
-    else if((char)data[0] == 'r'){
-      servoUpdateTimer = millis();
-      servoLeft = false;
-      servoRight = true;
-    }
-    else{
-      String tempData = "";
-    int cameraCounter = 0;
-    int counter = 0; //how many values have been read
-    //loop through sentence 
-    for (int i = 0; i < len; i++){
-      if((char)data[i] != ',' && counter < 3){
-        counter++;
-        String temp = String((char)data[i]); //convert data to string
-        tempData += temp; 
-      }
-      //all needed values have been read
-      else if(counter >= 3 && cameraCounter >= 2){
-        break; //stop reading
-      }
-      //new value
-      else{
-        cameraAngle[counter] = tempData.toInt();
-        cameraCounter++;
-        //reset values
-        counter = 0;
-        tempData = "";
-      }
-    }
-    }
-    
-    
-    
-    
+  else if (type == WS_EVT_DATA) {
+
+#ifdef DEBUG
+    Serial.print(cameraAngle[0]); Serial.println(cameraAngle[1]);
+#endif
+
   }
 }
- 
 //starts wifi
 //must begin serial before calling this function
-void inline startWiFi()
-{  
-    WiFi.begin(ssid, password);
+void startWiFi()
+{
 
-    Serial.print("Connecting to WiFi...");
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
-    }
-    Serial.println();
-    Serial.println("CONNECTED TO " + String(ssid));
-    Serial.println(WiFi.localIP());
-    Serial.println(WiFi.macAddress());
+
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
+
+  WiFi.config(staticIP, gateway, subnet);
+
+  WiFi.begin(ssid, password);
+
+  Serial.print("Connecting to WiFi...");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+#ifdef DEBUG
+    Serial.print(".");
+#endif
+  }
+#ifdef DEBUG
+  Serial.println();
+  Serial.println("CONNECTED TO " + String(ssid));
+  Serial.println(WiFi.localIP());
+  Serial.println(WiFi.macAddress());
+#endif
 }
 
 //starts server
-void inline startServer(){
+void inline startServer() {
   //need this to write to client
-  if(!SPIFFS.begin(true)){
-     Serial.println("An Error has occurred while mounting SPIFFS");
-     return;
+  if (!SPIFFS.begin(true)) {
+#ifdef DEBUG
+    Serial.println("An Error has occurred while mounting SPIFFS");
+#endif
+    return;
   }
 
   //start server
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
-  server.on("/html", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/html", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(SPIFFS, "/ws.html", "text/html");
   });
   server.begin();
 }
 
 //writes to websocket
-void writeServer(String message){
+void writeServer(String message) {
   //if server is connected
-  if (globalClient){
+  if (globalClient) {
     globalClient->text(message);
   }
-} 
+}
 
 #endif
