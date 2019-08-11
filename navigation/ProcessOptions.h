@@ -1,2 +1,2 @@
-//#define SERVOCONTROL 1
+#define SERVOCONTROL 1
 //#define DEBUG 1;

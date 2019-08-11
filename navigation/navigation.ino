@@ -5,7 +5,6 @@
    and communicate with webpage
 */
 
-#define DEBUG 1;
 
 #include "ProcessOptions.h"
 #include <Wire.h>
@@ -13,7 +12,10 @@
 #include "WeMarsCompass.h"
 #include "NavWebsocket.h";
 #include <TinyGPS++.h>
-//#include "ESPServo.h"
+
+#ifdef SERVOCONTROL
+#include "ESPServo.h"
+#endif
 
 
 
@@ -24,7 +26,7 @@
 
 
 
-const int SERVO_PIN[] = {14, 15, 16}; //placeholder
+const int SERVO_PIN[] = {25, 33, 32}; //placeholder
 const int SERVO_CHANNEL[] = {0, 1, 2};
 
 bool led_status = false;
@@ -35,6 +37,34 @@ TinyGPSPlus gps;
 
 int timer;
 int servoTimer;
+
+//updates vectors from board data
+void updateData() {
+  //populate data
+  a_data[0] = (int)lsm.accelData.x;
+  a_data[1] = (int)lsm.accelData.y;
+  a_data[2] = (int)lsm.accelData.z;
+  m_data[0] = (int)lsm.magData.x;
+  m_data[1] = (int)lsm.magData.y;
+  m_data[2] = (int)lsm.magData.z;
+}
+
+
+//generates string to send data over websocket
+String generateSentence(float angleX, float angleY, float bearing, float latitude, float longitude) {
+  String temp = "";
+  temp += angleX;
+  temp += ",";
+  temp += angleY;
+  temp += ",";
+  temp += bearing;
+  temp += ",";
+  temp += latitude;
+  temp += ",";
+  temp += longitude;
+  return temp;
+}
+
 
 void setup() {
 
@@ -53,6 +83,7 @@ void setup() {
     setupServo(SERVO_PIN[a], SERVO_CHANNEL[a]);
   }
 #endif
+
 
   if (!lsm.begin())
   {
@@ -82,25 +113,41 @@ void loop() {
   //update every 50ms
   if (millis() - servoTimer > 50) {
 
-    for (int a = 0; a < 2; a++) {
-      int temp = map(cameraAngle[0], 0, 180, MIN_PWM_OUT, MAX_PWM_OUT);
+    /*
+      for (int a = 0; a < 2; a++) {
+      int temp = map(cameraAngle[a], 0, 180, MIN_PWM_OUT, MAX_PWM_OUT);
       ledcWrite(SERVO_CHANNEL[a], temp);
-    }
+      }*/
 
+    int temp = map(cameraAngle[0], 0, 180, MIN_PWM_OUT, MAX_PWM_OUT);
+    ledcWrite(SERVO_CHANNEL[0], temp);
+    if (cameraAngle[1] > 33) {
+      temp = map(10, -100, 100, MIN_PWM_OUT, MAX_PWM_OUT);
+    }
+    else if (cameraAngle[1] < -33) {
+      temp = map(-10, -100, 100, MIN_PWM_OUT, MAX_PWM_OUT);
+    }
+    else {
+      temp = map(0, -100, 100, MIN_PWM_OUT, MAX_PWM_OUT);
+    }
+    ledcWrite(SERVO_CHANNEL[1], temp);
+  }
+
+  /*
     //if data has not been recieved
     if (millis() - servoUpdateTimer > 50) {
-      servoLeft = false;
-      servoRight = false;
-      ledcWrite(SERVO_CHANNEL[2], (MAX_PWM_OUT + MIN_PWM_OUT) / 2); //stop servo
+    servoLeft = false;
+    servoRight = false;
+    servo360(2, 0);
     }
     else if (servoLeft) {
-      ledcWrite(SERVO_CHANNEL[2], MAX_PWM_OUT);
+    servo360(2, -5);
     }
     else if (servoRight) {
-      ledcWrite(SERVO_CHANNEL[2], MIN_PWM_OUT);
+    servo360(2, 5);
     }
     servoTimer = millis(); //reset timer
-  }
+    }*/
 #endif
 
   if (millis() - timer > 1000) {
@@ -123,30 +170,4 @@ void loop() {
 #endif
     writeServer(generateSentence(getAngleX(), getAngleY(), getBearing(), gps.location.lat(), gps.location.lng()));
   }
-}
-
-//generates string to send data over websocket
-String generateSentence(float angleX, float angleY, float bearing, float latitude, float longitude) {
-  String temp = "";
-  temp += angleX;
-  temp += ",";
-  temp += angleY;
-  temp += ",";
-  temp += bearing;
-  temp += ",";
-  temp += latitude;
-  temp += ",";
-  temp += longitude;
-  return temp;
-}
-
-//updates vectors from board data
-void updateData() {
-  //populate data
-  a_data[0] = (int)lsm.accelData.x;
-  a_data[1] = (int)lsm.accelData.y;
-  a_data[2] = (int)lsm.accelData.z;
-  m_data[0] = (int)lsm.magData.x;
-  m_data[1] = (int)lsm.magData.y;
-  m_data[2] = (int)lsm.magData.z;
 }
